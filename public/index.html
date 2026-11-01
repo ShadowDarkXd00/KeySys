@@ -83,7 +83,6 @@
         <div><label>Timer starts</label>
           <select id="gStart"><option value="first_use">On first use</option><option value="creation">On creation</option></select></div>
         <div class="full"><label>Note (buyer / label)</label><input id="gNote" maxlength="120" placeholder="optional"></div>
-        <div class="full"><label class="chk"><input type="checkbox" id="gHwid"> Lock key to the first device that uses it (needs <code>hwid</code> from the app)</label></div>
       </div>
       <div class="row" style="margin-top:12px"><button id="genBtn">Generate</button><button class="ghost" id="copyNew" disabled>Copy new keys</button></div>
       <pre id="newKeys" style="margin-top:10px"></pre>
@@ -132,7 +131,7 @@ function copy(text){
   function fallback(){const a=document.createElement('textarea');a.value=text;document.body.appendChild(a);a.select();try{document.execCommand('copy');toast('Copied')}catch(e){toast('Copy failed')}a.remove()}
 }
 function showLogin(){ $('app').classList.add('hide'); $('login').classList.remove('hide'); $('pw').focus(); }
-function showApp(){ $('login').classList.add('hide'); $('app').classList.remove('hide'); $('checkUrl').textContent = location.origin + '/api/check?key=KEY&hwid=DEVICE_ID'; load(); }
+function showApp(){ $('login').classList.add('hide'); $('app').classList.remove('hide'); $('checkUrl').textContent = location.origin + '/api/check?key=KEY'; load(); }
 
 function fmtDur(s){ if(!s) return 'Lifetime'; if(s%86400===0) return s/86400+' day'+(s/86400>1?'s':''); if(s%3600===0) return s/3600+' hour'+(s/3600>1?'s':''); return Math.round(s/60)+' min'; }
 function fmtDate(ms){ return ms ? new Date(ms).toLocaleString() : '—'; }
@@ -171,7 +170,6 @@ function render(){
       'Duration: '+fmtDur(k.duration_seconds)+(k.duration_seconds?(k.start_on==='creation'?' (from creation)':' (from first use)'):''),
       'Expires: '+(k.expires_at?fmtDate(k.expires_at):(k.duration_seconds?'on first use':'never')),
       'Uses: '+k.uses+' / '+(k.max_uses===null?'∞':k.max_uses),
-      'Device lock: '+(k.hwid_lock?(k.hwid?'bound':'on, not bound'):'off'),
       'Last used: '+fmtDate(k.last_used_at),
       'Created: '+fmtDate(k.created_at),
     ];
@@ -180,8 +178,7 @@ function render(){
     const acts=document.createElement('div');acts.className='acts';
     const mk=(label,cls,fn)=>{const b=document.createElement('button');b.className='sm '+(cls||'ghost');b.textContent=label;b.onclick=fn;acts.appendChild(b)};
     mk('Copy','ghost',()=>copy(k.key));
-    mk('Reset','ghost',()=>act(k.key,'reset','Reset uses/timer/device for '+k.key+'?'));
-    if(k.hwid_lock&&k.hwid) mk('Unbind device','ghost',()=>act(k.key,'hwid-reset'));
+    mk('Reset','ghost',()=>act(k.key,'reset','Reset uses/timer for '+k.key+'?'));
     mk(k.revoked?'Unrevoke':'Revoke','ghost',()=>act(k.key,'revoke',null,{revoked:!k.revoked}));
     mk('+ Days','ghost',async()=>{const v=prompt('Add how many days? (negative to remove)','7');if(v===null)return;try{await api('/api/admin/keys/'+k.key,{method:'PATCH',body:JSON.stringify({add_days:Number(v)})});toast('Updated');load()}catch(e){toast(e.message)}});
     mk('Max uses','ghost',async()=>{const v=prompt('New max uses (blank = unlimited)',k.max_uses===null?'':k.max_uses);if(v===null)return;try{await api('/api/admin/keys/'+k.key,{method:'PATCH',body:JSON.stringify({max_uses:v.trim()===''?null:v})});toast('Updated');load()}catch(e){toast(e.message)}});
@@ -204,12 +201,12 @@ $('pw').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click()}
 $('logoutBtn').onclick = async ()=>{ await fetch('/api/admin/logout',{method:'POST'}); showLogin(); };
 $('genBtn').onclick = async ()=>{
   const unit=$('gUnit').value;
-  const body={count:$('gCount').value,unit,amount:$('gAmount').value,max_uses:$('gUses').value,start_on:$('gStart').value,note:$('gNote').value,hwid_lock:$('gHwid').checked};
+  const body={count:$('gCount').value,unit,amount:$('gAmount').value,max_uses:$('gUses').value,start_on:$('gStart').value,note:$('gNote').value};
   try{ const j=await api('/api/admin/keys',{method:'POST',body:JSON.stringify(body)}); LAST_NEW=j.keys.map(k=>k.key); $('newKeys').textContent=LAST_NEW.join('\n'); $('copyNew').disabled=false; toast(LAST_NEW.length+' key(s) created'); load(); }
   catch(e){ toast(e.message); }
 };
 $('copyNew').onclick=()=>copy(LAST_NEW.join('\n'));
-$('copyUrl').onclick=()=>copy(location.origin+'/api/check?key=KEY&hwid=DEVICE_ID');
+$('copyUrl').onclick=()=>copy(location.origin+'/api/check?key=KEY');
 $('tBtn').onclick = async ()=>{
   const k=$('tKey').value.trim();
   try{ const r=await fetch('/api/check?consume=0&key='+encodeURIComponent(k)); $('tOut').textContent=JSON.stringify(await r.json(),null,2); }catch(e){ $('tOut').textContent=e.message; }

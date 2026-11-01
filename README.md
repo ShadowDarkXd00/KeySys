@@ -5,17 +5,17 @@ License key generator + validator for your game/app.
 - Admin panel (password protected) to generate, reset, revoke, extend and delete keys
 - Keys look like `SHADOW-XXXXXXXXXXXX`
 - Expiry by minutes / hours / days / lifetime (timer starts on first use or on creation)
-- Max uses per key, optional device (HWID) lock
+- Max uses per key
 - Public check URL for your app
 
 ## Check URL (use this in your app)
 
 ```
-GET  /api/check?key=SHADOW-XXXXXXXXXXXX&hwid=DEVICE_ID
-POST /api/check   {"key":"SHADOW-XXXXXXXXXXXX","hwid":"DEVICE_ID"}
+GET  /api/check?key=SHADOW-XXXXXXXXXXXX
+POST /api/check   {"key":"SHADOW-XXXXXXXXXXXX"}
 ```
 
-`hwid` is only needed for keys created with device lock. Add `consume=0` to look at a key without using a use or starting its timer.
+Add `consume=0` to look at a key without using a use or starting its timer.
 
 Response:
 
@@ -25,10 +25,10 @@ Response:
   "uses": 1, "max_uses": 5, "uses_left": 4 }
 ```
 
-`status` is one of: `valid`, `invalid`, `expired`, `revoked`, `max_uses`, `hwid_required`, `hwid_mismatch`, `rate_limited`.
+`status` is one of: `valid`, `invalid`, `expired`, `revoked`, `max_uses`, `rate_limited`.
 Always check `valid === true`.
 
-Each successful check uses one use. With device lock on, re-checks from the already-bound device do not use extra uses.
+Each successful check uses one use.
 
 ## Environment variables
 

@@ -103,8 +103,6 @@ function publicView(r) {
     expires_at: r.expires_at,
     max_uses: r.max_uses,
     uses: r.uses,
-    hwid_lock: !!r.hwid_lock,
-    hwid: r.hwid || null,
     revoked: !!r.revoked,
     first_used_at: r.first_used_at,
     last_used_at: r.last_used_at,
@@ -172,8 +170,6 @@ app.post('/api/admin/keys', requireAdmin, ah(async (req, res) => {
       expires_at: duration && startOn === 'creation' ? now + duration * 1000 : null,
       max_uses: maxUses,
       uses: 0,
-      hwid_lock: !!b.hwid_lock,
-      hwid: null,
       revoked: false,
       first_used_at: null,
       last_used_at: null,
@@ -202,7 +198,6 @@ app.post(
   requireAdmin,
   keyAction((rec) => {
     rec.uses = 0;
-    rec.hwid = null;
     rec.first_used_at = null;
     rec.last_used_at = null;
     rec.last_ip = null;
@@ -215,14 +210,6 @@ app.post(
   requireAdmin,
   keyAction((rec, body) => {
     rec.revoked = body.revoked === false ? false : true;
-    return { rec, result: publicView(rec) };
-  })
-);
-app.post(
-  '/api/admin/keys/:key/hwid-reset',
-  requireAdmin,
-  keyAction((rec) => {
-    rec.hwid = null;
     return { rec, result: publicView(rec) };
   })
 );
@@ -256,7 +243,7 @@ app.delete(
 );
 
 /* ---------- public key check (put this URL in your app) ---------- */
-// GET or POST /api/check?key=SHADOW-XXXXXXXXXXXX&hwid=DEVICE_ID
+// GET or POST /api/check?key=SHADOW-XXXXXXXXXXXX
 // consume=0 only looks at the key without using a use or starting the timer.
 const cors = (req, res, next) => {
   res.set('Access-Control-Allow-Origin', '*');
@@ -266,7 +253,7 @@ const cors = (req, res, next) => {
   next();
 };
 
-function evaluate(rec, hwid, consume, ip) {
+function evaluate(rec, consume, ip) {
   const now = Date.now();
   const fail = (status, message) => ({
     rec: undefined,
@@ -275,22 +262,15 @@ function evaluate(rec, hwid, consume, ip) {
   if (!rec) return fail('invalid', 'Key not found');
   if (rec.revoked) return fail('revoked', 'Key has been revoked');
   if (rec.expires_at && now > rec.expires_at) return fail('expired', 'Key has expired');
-  if (rec.hwid_lock) {
-    if (!hwid) return fail('hwid_required', 'Device ID required');
-    if (rec.hwid && rec.hwid !== hwid) return fail('hwid_mismatch', 'Key is locked to another device');
-  }
-  const sameDevice = rec.hwid_lock && rec.hwid && rec.hwid === hwid;
-  const needsUse = !sameDevice; // re-checks from the bound device are free
-  if (needsUse && rec.max_uses !== null && rec.uses >= rec.max_uses) {
+  if (rec.max_uses !== null && rec.uses >= rec.max_uses) {
     return fail('max_uses', 'Key has no uses left');
   }
   if (consume) {
-    if (needsUse) rec.uses += 1;
+    rec.uses += 1;
     if (!rec.first_used_at) {
       rec.first_used_at = now;
       if (rec.duration_seconds && !rec.expires_at) rec.expires_at = now + rec.duration_seconds * 1000;
     }
-    if (rec.hwid_lock && !rec.hwid) rec.hwid = hwid;
     rec.last_used_at = now;
     rec.last_ip = ip;
   }
@@ -316,12 +296,11 @@ function evaluate(rec, hwid, consume, ip) {
 async function handleCheck(req, res) {
   const src = req.method === 'POST' ? Object.assign({}, req.query, req.body || {}) : req.query;
   const key = String(src.key || '').trim().toUpperCase();
-  const hwid = src.hwid ? String(src.hwid).slice(0, 200) : '';
   const consume = !(src.consume === '0' || src.consume === 0 || src.consume === false || src.consume === 'false');
   if (!/^SHADOW-[A-Z0-9]{12}$/.test(key)) {
     return res.json({ ok: true, valid: false, status: 'invalid', message: 'Key not found' });
   }
-  const result = await store.mutate(key, (rec) => evaluate(rec, hwid, consume, req.ip));
+  const result = await store.mutate(key, (rec) => evaluate(rec, consume, req.ip));
   res.json(result);
 }
 app.options('/api/check', cors);
