@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shadow Key System</title>
+<style>
+  :root{--bg:#0b0b12;--card:#14141f;--line:#262638;--txt:#e8e8f2;--mut:#8a8aa3;--acc:#8b5cf6;--acc2:#6d28d9;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:16px}
+  h1{font-size:20px;margin:0;letter-spacing:.5px}
+  h1 span{color:var(--acc)}
+  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+  label{display:block;font-size:12px;color:var(--mut);margin:0 0 4px}
+  input,select{width:100%;background:#0e0e18;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:10px;font-size:15px}
+  input:focus,select:focus{outline:none;border-color:var(--acc)}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  @media(min-width:640px){.grid{grid-template-columns:repeat(4,1fr)}}
+  .full{grid-column:1/-1}
+  button{background:var(--acc2);color:#fff;border:0;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:600;cursor:pointer}
+  button:hover{background:var(--acc)}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+  button.ghost:hover{border-color:var(--acc)}
+  button.danger{background:#7f1d1d}button.danger:hover{background:var(--bad)}
+  button.sm{padding:6px 10px;font-size:12px}
+  .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+  @media(min-width:640px){.stats{grid-template-columns:repeat(5,1fr)}}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .stat b{display:block;font-size:22px}.stat small{color:var(--mut)}
+  .keyrow{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:#0e0e18}
+  .keyhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+  .key{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;word-break:break-all;cursor:pointer}
+  .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px}
+  .b-active{background:#14532d;color:#86efac}.b-unused{background:#1e3a8a;color:#93c5fd}
+  .b-expired{background:#78350f;color:#fcd34d}.b-revoked{background:#7f1d1d;color:#fca5a5}.b-used{background:#4c1d95;color:#c4b5fd}
+  .meta{color:var(--mut);font-size:12px;margin:6px 0;display:flex;flex-wrap:wrap;gap:4px 14px}
+  .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  #login{max-width:360px;margin:12vh auto}
+  .err{color:var(--bad);font-size:13px;min-height:18px;margin-top:8px}
+  code{background:#0e0e18;border:1px solid var(--line);border-radius:6px;padding:2px 6px;word-break:break-all}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#222236;border:1px solid var(--acc);padding:8px 16px;border-radius:99px;font-size:13px;opacity:0;transition:.2s;pointer-events:none}
+  .toast.show{opacity:1}
+  .chk{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--txt);margin-top:4px}
+  .chk input{width:auto}
+  pre{white-space:pre-wrap;word-break:break-all;margin:0;font-size:12px;color:var(--mut)}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="login" class="card hide">
+    <h1>🔑 <span>SHADOW</span> KEY SYSTEM</h1>
+    <p style="color:var(--mut);margin:8px 0 14px">Admin login</p>
+    <label for="pw">Admin password</label>
+    <input id="pw" type="password" autocomplete="current-password">
+    <div class="row" style="margin-top:12px"><button id="loginBtn">Login</button></div>
+    <div class="err" id="loginErr"></div>
+  </div>
+
+  <div id="app" class="hide">
+    <div class="top">
+      <h1>🔑 <span>SHADOW</span> KEY SYSTEM</h1>
+      <button class="ghost sm" id="logoutBtn">Logout</button>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="card">
+      <b>Generate keys</b>
+      <div class="grid" style="margin-top:10px">
+        <div><label>How many</label><input id="gCount" type="number" min="1" max="100" value="1"></div>
+        <div><label>Duration</label><input id="gAmount" type="number" min="1" value="30"></div>
+        <div><label>Unit</label>
+          <select id="gUnit">
+            <option value="minutes">Minutes</option><option value="hours">Hours</option>
+            <option value="days" selected>Days</option><option value="lifetime">Lifetime</option>
+          </select></div>
+        <div><label>Max uses (blank = unlimited)</label><input id="gUses" type="number" min="1" placeholder="∞"></div>
+        <div><label>Timer starts</label>
+          <select id="gStart"><option value="first_use">On first use</option><option value="creation">On creation</option></select></div>
+        <div class="full"><label>Note (buyer / label)</label><input id="gNote" maxlength="120" placeholder="optional"></div>
+        <div class="full"><label class="chk"><input type="checkbox" id="gHwid"> Lock key to the first device that uses it (needs <code>hwid</code> from the app)</label></div>
+      </div>
+      <div class="row" style="margin-top:12px"><button id="genBtn">Generate</button><button class="ghost" id="copyNew" disabled>Copy new keys</button></div>
+      <pre id="newKeys" style="margin-top:10px"></pre>
+    </div>
+
+    <div class="card">
+      <b>Key check URL (put this in your app)</b>
+      <p class="meta" style="margin:6px 0"><code id="checkUrl"></code></p>
+      <div class="row"><button class="ghost sm" id="copyUrl">Copy URL</button></div>
+      <div class="grid" style="margin-top:12px">
+        <div class="full" style="grid-column:1/-1"><label>Test a key</label>
+          <div class="row"><input id="tKey" placeholder="SHADOW-XXXXXXXXXXXX" style="flex:1;min-width:200px"><button class="ghost" id="tBtn">Test (no use consumed)</button></div></div>
+      </div>
+      <pre id="tOut" style="margin-top:8px"></pre>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <b>Keys</b>
+        <div class="row">
+          <select id="fStatus" style="width:auto"><option value="">All</option><option>active</option><option>unused</option><option>expired</option><option>revoked</option><option>used up</option></select>
+          <input id="fSearch" placeholder="Search key / note" style="width:180px">
+        </div>
+      </div>
+      <div id="list" style="margin-top:10px"></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let KEYS = [], LAST_NEW = [];
+
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),1800)}
+async function api(path, opts){
+  const r = await fetch(path, Object.assign({headers:{'Content-Type':'application/json'}}, opts));
+  let j = {}; try { j = await r.json(); } catch(e){}
+  if (r.status === 401 && !path.includes('login')) { showLogin(); throw new Error('Session expired'); }
+  if (!r.ok || j.ok === false) throw new Error(j.error || 'Request failed');
+  return j;
+}
+function copy(text){
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(()=>toast('Copied'),()=>fallback());
+  else fallback();
+  function fallback(){const a=document.createElement('textarea');a.value=text;document.body.appendChild(a);a.select();try{document.execCommand('copy');toast('Copied')}catch(e){toast('Copy failed')}a.remove()}
+}
+function showLogin(){ $('app').classList.add('hide'); $('login').classList.remove('hide'); $('pw').focus(); }
+function showApp(){ $('login').classList.add('hide'); $('app').classList.remove('hide'); $('checkUrl').textContent = location.origin + '/api/check?key=KEY&hwid=DEVICE_ID'; load(); }
+
+function fmtDur(s){ if(!s) return 'Lifetime'; if(s%86400===0) return s/86400+' day'+(s/86400>1?'s':''); if(s%3600===0) return s/3600+' hour'+(s/3600>1?'s':''); return Math.round(s/60)+' min'; }
+function fmtDate(ms){ return ms ? new Date(ms).toLocaleString() : '—'; }
+function status(k){
+  if (k.revoked) return 'revoked';
+  if (k.expires_at && Date.now() > k.expires_at) return 'expired';
+  if (k.max_uses !== null && k.uses >= k.max_uses) return 'used up';
+  if (!k.first_used_at) return 'unused';
+  return 'active';
+}
+const BCLASS = {active:'b-active',unused:'b-unused',expired:'b-expired',revoked:'b-revoked','used up':'b-used'};
+
+function render(){
+  const counts = {total:KEYS.length, active:0, unused:0, expired:0, revoked:0};
+  KEYS.forEach(k=>{const s=status(k); if(counts[s]!==undefined) counts[s]++;});
+  const st = $('stats'); st.textContent='';
+  [['total','Total'],['active','Active'],['unused','Unused'],['expired','Expired'],['revoked','Revoked']].forEach(([k,l])=>{
+    const d=document.createElement('div');d.className='stat';const b=document.createElement('b');b.textContent=counts[k];const s=document.createElement('small');s.textContent=l;d.append(b,s);st.appendChild(d);
+  });
+  const q=$('fSearch').value.trim().toLowerCase(), f=$('fStatus').value;
+  const list=$('list'); list.textContent='';
+  const shown = KEYS.filter(k=>{
+    if (f && status(k)!==f) return false;
+    if (q && !(k.key.toLowerCase().includes(q) || (k.note||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  if(!shown.length){const p=document.createElement('p');p.style.color='var(--mut)';p.textContent='No keys.';list.appendChild(p);return}
+  shown.forEach(k=>{
+    const s=status(k), row=document.createElement('div');row.className='keyrow';
+    const head=document.createElement('div');head.className='keyhead';
+    const kk=document.createElement('span');kk.className='key';kk.textContent=k.key;kk.title='Tap to copy';kk.onclick=()=>copy(k.key);
+    const bd=document.createElement('span');bd.className='badge '+BCLASS[s];bd.textContent=s.toUpperCase();
+    head.append(kk,bd);
+    const meta=document.createElement('div');meta.className='meta';
+    const items=[
+      'Duration: '+fmtDur(k.duration_seconds)+(k.duration_seconds?(k.start_on==='creation'?' (from creation)':' (from first use)'):''),
+      'Expires: '+(k.expires_at?fmtDate(k.expires_at):(k.duration_seconds?'on first use':'never')),
+      'Uses: '+k.uses+' / '+(k.max_uses===null?'∞':k.max_uses),
+      'Device lock: '+(k.hwid_lock?(k.hwid?'bound':'on, not bound'):'off'),
+      'Last used: '+fmtDate(k.last_used_at),
+      'Created: '+fmtDate(k.created_at),
+    ];
+    if(k.note) items.unshift('Note: '+k.note);
+    items.forEach(t=>{const sp=document.createElement('span');sp.textContent=t;meta.appendChild(sp)});
+    const acts=document.createElement('div');acts.className='acts';
+    const mk=(label,cls,fn)=>{const b=document.createElement('button');b.className='sm '+(cls||'ghost');b.textContent=label;b.onclick=fn;acts.appendChild(b)};
+    mk('Copy','ghost',()=>copy(k.key));
+    mk('Reset','ghost',()=>act(k.key,'reset','Reset uses/timer/device for '+k.key+'?'));
+    if(k.hwid_lock&&k.hwid) mk('Unbind device','ghost',()=>act(k.key,'hwid-reset'));
+    mk(k.revoked?'Unrevoke':'Revoke','ghost',()=>act(k.key,'revoke',null,{revoked:!k.revoked}));
+    mk('+ Days','ghost',async()=>{const v=prompt('Add how many days? (negative to remove)','7');if(v===null)return;try{await api('/api/admin/keys/'+k.key,{method:'PATCH',body:JSON.stringify({add_days:Number(v)})});toast('Updated');load()}catch(e){toast(e.message)}});
+    mk('Max uses','ghost',async()=>{const v=prompt('New max uses (blank = unlimited)',k.max_uses===null?'':k.max_uses);if(v===null)return;try{await api('/api/admin/keys/'+k.key,{method:'PATCH',body:JSON.stringify({max_uses:v.trim()===''?null:v})});toast('Updated');load()}catch(e){toast(e.message)}});
+    mk('Delete','danger',async()=>{if(!confirm('Delete '+k.key+' permanently?'))return;try{await api('/api/admin/keys/'+k.key,{method:'DELETE'});toast('Deleted');load()}catch(e){toast(e.message)}});
+    row.append(head,meta,acts);list.appendChild(row);
+  });
+}
+async function act(key, name, confirmMsg, body){
+  if(confirmMsg && !confirm(confirmMsg)) return;
+  try{ await api('/api/admin/keys/'+key+'/'+name,{method:'POST',body:JSON.stringify(body||{})}); toast('Done'); load(); }catch(e){toast(e.message)}
+}
+async function load(){ try{ const j=await api('/api/admin/keys'); KEYS=j.keys; render(); }catch(e){} }
+
+$('loginBtn').onclick = async ()=>{
+  $('loginErr').textContent='';
+  try{ await api('/api/admin/login',{method:'POST',body:JSON.stringify({password:$('pw').value})}); $('pw').value=''; showApp(); }
+  catch(e){ $('loginErr').textContent=e.message; }
+};
+$('pw').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click()});
+$('logoutBtn').onclick = async ()=>{ await fetch('/api/admin/logout',{method:'POST'}); showLogin(); };
+$('genBtn').onclick = async ()=>{
+  const unit=$('gUnit').value;
+  const body={count:$('gCount').value,unit,amount:$('gAmount').value,max_uses:$('gUses').value,start_on:$('gStart').value,note:$('gNote').value,hwid_lock:$('gHwid').checked};
+  try{ const j=await api('/api/admin/keys',{method:'POST',body:JSON.stringify(body)}); LAST_NEW=j.keys.map(k=>k.key); $('newKeys').textContent=LAST_NEW.join('\n'); $('copyNew').disabled=false; toast(LAST_NEW.length+' key(s) created'); load(); }
+  catch(e){ toast(e.message); }
+};
+$('copyNew').onclick=()=>copy(LAST_NEW.join('\n'));
+$('copyUrl').onclick=()=>copy(location.origin+'/api/check?key=KEY&hwid=DEVICE_ID');
+$('tBtn').onclick = async ()=>{
+  const k=$('tKey').value.trim();
+  try{ const r=await fetch('/api/check?consume=0&key='+encodeURIComponent(k)); $('tOut').textContent=JSON.stringify(await r.json(),null,2); }catch(e){ $('tOut').textContent=e.message; }
+};
+$('gUnit').onchange=()=>{ $('gAmount').disabled = $('gUnit').value==='lifetime'; };
+$('fSearch').oninput=render; $('fStatus').onchange=render;
+
+(async()=>{ try{ await api('/api/admin/me'); showApp(); }catch(e){ showLogin(); } })();
+</script>
+</body>
+</html>
