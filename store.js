@@ -83,4 +83,8 @@ function makePgStore() {
   };
 }
 
+if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
+  console.error('DATABASE_URL is required in production (Render disk is temporary, keys would be lost). Add it in Environment settings.');
+  process.exit(1);
+}
 module.exports = process.env.DATABASE_URL ? makePgStore() : makeFileStore();
