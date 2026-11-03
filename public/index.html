@@ -136,7 +136,7 @@ function copy(text){
   function fallback(){const a=document.createElement('textarea');a.value=text;document.body.appendChild(a);a.select();try{document.execCommand('copy');toast('Copied')}catch(e){toast('Copy failed')}a.remove()}
 }
 function showLogin(){ $('app').classList.add('hide'); $('login').classList.remove('hide'); $('pw').focus(); }
-function showApp(){ $('login').classList.add('hide'); $('app').classList.remove('hide'); $('checkUrl').textContent = location.origin + '/api/check?key=KEY'; $('checkUrl2').textContent = location.origin + '/api/check'; load(); }
+function showApp(){ $('login').classList.add('hide'); $('app').classList.remove('hide'); $('checkUrl').textContent = location.origin + '/api/check?key=KEY'; $('checkUrl2').textContent = location.origin + '/api/check?kk'; load(); }
 
 function fmtDur(s){ if(!s) return 'Lifetime'; if(s%86400===0) return s/86400+' day'+(s/86400>1?'s':''); if(s%3600===0) return s/3600+' hour'+(s/3600>1?'s':''); return Math.round(s/60)+' min'; }
 function fmtDate(ms){ return ms ? new Date(ms).toLocaleString() : '—'; }
@@ -212,8 +212,8 @@ $('genBtn').onclick = async ()=>{
 };
 $('copyNew').onclick=()=>copy(LAST_NEW.join('\n'));
 $('copyUrl').onclick=()=>copy(location.origin+'/api/check?key=KEY');
-$('copyUrl2').onclick=()=>copy(location.origin+'/api/check');
-$('copyCurl').onclick=()=>copy("curl -X POST "+location.origin+"/api/check -H 'Content-Type: application/json' -d '{\"key\":\"SHADOW-XXXXXXXXXXXX\"}'");
+$('copyUrl2').onclick=()=>copy(location.origin+'/api/check?kk');
+$('copyCurl').onclick=()=>copy("curl -X POST "+location.origin+"/api/check?kk -H 'Content-Type: application/json' -d '{\"key\":\"SHADOW-XXXXXXXXXXXX\"}'");
 $('tBtn').onclick = async ()=>{
   const k=$('tKey').value.trim();
   try{ const r=await fetch('/api/check?consume=0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:k})}); $('tOut').textContent=JSON.stringify(await r.json(),null,2); }catch(e){ $('tOut').textContent=e.message; }

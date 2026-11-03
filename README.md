@@ -15,9 +15,9 @@ Type 1 (key in URL):
 GET  /api/check?key=SHADOW-XXXXXXXXXXXX
 
 Type 2 (key NOT in URL):
-POST /api/check   {"key":"SHADOW-XXXXXXXXXXXX"}
-POST /api/check   with plain-text body SHADOW-XXXXXXXXXXXX
-POST /api/check   with header  X-License-Key: SHADOW-XXXXXXXXXXXX
+POST /api/check?kk   {"key":"SHADOW-XXXXXXXXXXXX"}
+POST /api/check?kk   with plain-text body SHADOW-XXXXXXXXXXXX
+POST /api/check?kk   with header  X-License-Key: SHADOW-XXXXXXXXXXXX
 ```
 
 Add `consume=0` to look at a key without using a use or starting its timer.
