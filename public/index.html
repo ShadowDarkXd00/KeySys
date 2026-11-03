@@ -90,8 +90,13 @@
 
     <div class="card">
       <b>Key check URL (put this in your app)</b>
-      <p class="meta" style="margin:6px 0"><code id="checkUrl"></code></p>
+      <p class="meta" style="margin:8px 0 2px"><b>Type 1 &mdash; key in URL</b> (GET)</p>
+      <p class="meta" style="margin:4px 0"><code id="checkUrl"></code></p>
       <div class="row"><button class="ghost sm" id="copyUrl">Copy URL</button></div>
+      <p class="meta" style="margin:14px 0 2px"><b>Type 2 &mdash; key not in URL</b> (POST)</p>
+      <p class="meta" style="margin:4px 0"><code id="checkUrl2"></code></p>
+      <p class="meta" style="margin:4px 0">Send the key in the body: <code>{"key":"SHADOW-XXXXXXXXXXXX"}</code> (JSON), or as plain text, or in the <code>X-License-Key</code> header.</p>
+      <div class="row"><button class="ghost sm" id="copyUrl2">Copy URL</button><button class="ghost sm" id="copyCurl">Copy curl example</button></div>
       <div class="grid" style="margin-top:12px">
         <div class="full" style="grid-column:1/-1"><label>Test a key</label>
           <div class="row"><input id="tKey" placeholder="SHADOW-XXXXXXXXXXXX" style="flex:1;min-width:200px"><button class="ghost" id="tBtn">Test (no use consumed)</button></div></div>
@@ -131,7 +136,7 @@ function copy(text){
   function fallback(){const a=document.createElement('textarea');a.value=text;document.body.appendChild(a);a.select();try{document.execCommand('copy');toast('Copied')}catch(e){toast('Copy failed')}a.remove()}
 }
 function showLogin(){ $('app').classList.add('hide'); $('login').classList.remove('hide'); $('pw').focus(); }
-function showApp(){ $('login').classList.add('hide'); $('app').classList.remove('hide'); $('checkUrl').textContent = location.origin + '/api/check?key=KEY'; load(); }
+function showApp(){ $('login').classList.add('hide'); $('app').classList.remove('hide'); $('checkUrl').textContent = location.origin + '/api/check?key=KEY'; $('checkUrl2').textContent = location.origin + '/api/check'; load(); }
 
 function fmtDur(s){ if(!s) return 'Lifetime'; if(s%86400===0) return s/86400+' day'+(s/86400>1?'s':''); if(s%3600===0) return s/3600+' hour'+(s/3600>1?'s':''); return Math.round(s/60)+' min'; }
 function fmtDate(ms){ return ms ? new Date(ms).toLocaleString() : '—'; }
@@ -207,9 +212,11 @@ $('genBtn').onclick = async ()=>{
 };
 $('copyNew').onclick=()=>copy(LAST_NEW.join('\n'));
 $('copyUrl').onclick=()=>copy(location.origin+'/api/check?key=KEY');
+$('copyUrl2').onclick=()=>copy(location.origin+'/api/check');
+$('copyCurl').onclick=()=>copy("curl -X POST "+location.origin+"/api/check -H 'Content-Type: application/json' -d '{\"key\":\"SHADOW-XXXXXXXXXXXX\"}'");
 $('tBtn').onclick = async ()=>{
   const k=$('tKey').value.trim();
-  try{ const r=await fetch('/api/check?consume=0&key='+encodeURIComponent(k)); $('tOut').textContent=JSON.stringify(await r.json(),null,2); }catch(e){ $('tOut').textContent=e.message; }
+  try{ const r=await fetch('/api/check?consume=0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:k})}); $('tOut').textContent=JSON.stringify(await r.json(),null,2); }catch(e){ $('tOut').textContent=e.message; }
 };
 $('gUnit').onchange=()=>{ $('gAmount').disabled = $('gUnit').value==='lifetime'; };
 $('fSearch').oninput=render; $('fStatus').onchange=render;

@@ -17,6 +17,8 @@ const app = express();
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 app.use(express.json({ limit: '50kb' }));
+app.use(express.urlencoded({ extended: false, limit: '50kb' }));
+app.use(express.text({ type: 'text/plain', limit: '1kb' }));
 app.use((req, res, next) => {
   res.set('X-Content-Type-Options', 'nosniff');
   res.set('X-Frame-Options', 'DENY');
@@ -243,11 +245,12 @@ app.delete(
 );
 
 /* ---------- public key check (put this URL in your app) ---------- */
-// GET or POST /api/check?key=SHADOW-XXXXXXXXXXXX
+// Type 1: GET /api/check?key=SHADOW-XXXXXXXXXXXX
+// Type 2: POST /api/check with the key in the body (JSON or plain text) or an X-License-Key header, nothing in the URL
 // consume=0 only looks at the key without using a use or starting the timer.
 const cors = (req, res, next) => {
   res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, X-License-Key');
   res.set('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
@@ -294,8 +297,11 @@ function evaluate(rec, consume, ip) {
 }
 
 async function handleCheck(req, res) {
-  const src = req.method === 'POST' ? Object.assign({}, req.query, req.body || {}) : req.query;
-  const key = String(src.key || '').trim().toUpperCase();
+  // Key can come from: ?key= (GET), JSON/form body {"key":...}, a plain-text body, or the X-License-Key header.
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const src = req.method === 'POST' ? Object.assign({}, req.query, body) : req.query;
+  let rawKey = src.key || req.headers['x-license-key'] || (typeof req.body === 'string' ? req.body : '');
+  const key = String(rawKey).trim().toUpperCase();
   const consume = !(src.consume === '0' || src.consume === 0 || src.consume === false || src.consume === 'false');
   if (!/^SHADOW-[A-Z0-9]{12}$/.test(key)) {
     return res.json({ ok: true, valid: false, status: 'invalid', message: 'Key not found' });
