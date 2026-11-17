@@ -40,7 +40,8 @@ Each successful check uses one use.
 | Name | Purpose |
 |---|---|
 | `ADMIN_PASSWORD` | Admin login password (required) |
-| `DATABASE_URL` | Postgres connection string (keys are stored here) |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `KS_DB_SECRET` | Supabase storage (used on Vercel). Tables are locked; the server reaches them only through secret-checked functions |
+| `DATABASE_URL` | Plain Postgres connection string (alternative to Supabase, e.g. Render) |
 | `SESSION_SECRET` | Optional, signs admin sessions |
 | `PGSSL` | Set to `off` if your Postgres does not use SSL |
 

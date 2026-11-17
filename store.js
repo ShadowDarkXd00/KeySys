@@ -83,8 +83,52 @@ function makePgStore() {
   };
 }
 
-if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
-  console.error('DATABASE_URL is required in production (Render disk is temporary, keys would be lost). Add it in Environment settings.');
+function makeSupabaseStore() {
+  const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
+  const anon = process.env.SUPABASE_ANON_KEY;
+  const secret = process.env.KS_DB_SECRET;
+  async function rpc(fn, args) {
+    const r = await fetch(base + '/rest/v1/rpc/' + fn, {
+      method: 'POST',
+      headers: { apikey: anon, Authorization: 'Bearer ' + anon, 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ p_secret: secret }, args)),
+    });
+    const text = await r.text();
+    if (!r.ok) throw new Error('supabase rpc ' + fn + ' ' + r.status + ': ' + text.slice(0, 200));
+    return text ? JSON.parse(text) : null;
+  }
+  return {
+    kind: 'supabase',
+    async init() {},
+    async all() { return (await rpc('ks_all', {})) || []; },
+    async get(key) {
+      const rows = await rpc('ks_get', { p_key: key });
+      return rows && rows[0] ? rows[0].data : null;
+    },
+    async insertMany(recs) { await rpc('ks_insert', { p_recs: recs }); },
+    async mutate(key, fn) {
+      for (let i = 0; i < 6; i++) {
+        const rows = await rpc('ks_get', { p_key: key });
+        const row = rows && rows[0] ? rows[0] : null;
+        const out = fn(row ? row.data : null);
+        if (out.rec === undefined) return out.result;
+        if (!row) return out.result;
+        const ok = out.rec === null
+          ? await rpc('ks_delete', { p_key: key, p_version: row.version })
+          : await rpc('ks_update', { p_key: key, p_data: out.rec, p_version: row.version });
+        if (ok) return out.result;
+      }
+      throw new Error('Too many concurrent updates, try again');
+    },
+  };
+}
+
+if (!process.env.DATABASE_URL && !process.env.KS_DB_SECRET && process.env.NODE_ENV === 'production') {
+  console.error('A database is required in production (set KS_DB_SECRET + SUPABASE_URL + SUPABASE_ANON_KEY, or DATABASE_URL).');
   process.exit(1);
 }
-module.exports = process.env.DATABASE_URL ? makePgStore() : makeFileStore();
+module.exports = process.env.KS_DB_SECRET && process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
+  ? makeSupabaseStore()
+  : process.env.DATABASE_URL
+  ? makePgStore()
+  : makeFileStore();

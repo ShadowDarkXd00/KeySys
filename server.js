@@ -19,6 +19,11 @@ app.disable('x-powered-by');
 app.use(express.json({ limit: '50kb' }));
 app.use(express.urlencoded({ extended: false, limit: '50kb' }));
 app.use(express.text({ type: 'text/plain', limit: '1kb' }));
+
+// Make sure storage is ready before handling any request (works on serverless and long-running hosts).
+const ready = store.init();
+ready.catch((e) => console.error('Storage init failed', e));
+app.use((req, res, next) => ready.then(() => next(), next));
 app.use((req, res, next) => {
   res.set('X-Content-Type-Options', 'nosniff');
   res.set('X-Frame-Options', 'DENY');
@@ -324,10 +329,10 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-store
-  .init()
-  .then(() => app.listen(PORT, () => console.log(`Shadow Key System on :${PORT} (${store.kind})`)))
-  .catch((e) => {
-    console.error('Storage init failed', e);
-    process.exit(1);
-  });
+if (!process.env.VERCEL) {
+  ready
+    .then(() => app.listen(PORT, () => console.log(`Shadow Key System on :${PORT} (${store.kind})`)))
+    .catch(() => process.exit(1));
+}
+// Vercel runs the exported app as a serverless function.
+module.exports = app;
